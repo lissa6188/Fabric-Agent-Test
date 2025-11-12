@@ -1,0 +1,22 @@
+@* 
+    라우팅 컴포넌트 - URL과 페이지 컴포넌트를 매칭
+    AppAssembly: 현재 어셈블리에서 @page 디렉티브가 있는 컴포넌트를 자동 탐색
+*@
+<Router AppAssembly="typeof(App).Assembly">
+    @* URL과 매칭되는 페이지가 있을 때 *@
+    <Found Context="routeData">
+        @* 
+            RouteView: 찾은 페이지를 렌더링
+            - RouteData: URL 매칭 정보
+            - DefaultLayout: 모든 페이지를 MainLayout으로 감싸기
+        *@
+        <RouteView RouteData="routeData" DefaultLayout="typeof(MainLayout)" />
+    </Found>
+    
+    @* 404 Not Found - URL과 매칭되는 페이지가 없을 때 *@
+    <NotFound>
+        <LayoutView Layout="typeof(MainLayout)">
+            <p>Sorry, there's nothing at this address.</p>
+        </LayoutView>
+    </NotFound>
+</Router>

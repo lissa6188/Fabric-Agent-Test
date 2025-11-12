@@ -1,97 +1,167 @@
 # Fabric-Agent-Test
 
-# Azure AI Compliance Agent (Fabric + Semantic Kernel)
+Azure AI Foundry 기반 컴플라이언스 리포트 AI 에이전트
 
-온도 센서·근무시간·점검 로그 같은 **팩트 데이터**를 기반으로,  
-규정 위반 탐지 결과를 사람이 바로 제출 가능한 **컴플라이언스 리포트**로 자동 생성하는 데모 프로젝트입니다.
+## 프로젝트 개요
 
-- **데이터:** Microsoft Fabric OneLake (Lakehouse)  
-- **분석:** Fabric(노트북 / SQL / ML)에서 집계·이상탐지  
-- **AI 계층:** Azure AI Foundry + Semantic Kernel 기반 LLM 에이전트  
-- **앱:** 로컬 웹 앱 (리포트 조회 + 프롬프트 실행)
+Microsoft Fabric OneLake의 데이터를 기반으로 규정 위반 사항을 탐지하고, AI를 활용하여 컴플라이언스 리포트를 자동 생성하는 시스템입니다.
 
-핵심 개념은 다음과 같습니다:  
-> “탐지는 규칙이나 ML이 하고, 설명·요약·보고서는 LLM이 한다.”
+## 기술 스택
 
----
+### Backend
+- .NET 8.0 ASP.NET Core Web API
+- Azure OpenAI (GPT-4o)
+- Semantic Kernel
+- Swagger/OpenAPI
 
-## 1. 시나리오 요약
+### Frontend
+- Blazor Server
+- Markdown 렌더링 (Markdig)
+- 실시간 스트리밍 채팅 UI
 
-이 프로젝트는 다음과 같은 데이터 흐름을 가정합니다.
+## 프로젝트 구조
 
-1. 설비 온도, 작업시간 등의 로그가 Fabric Lakehouse에 적재됩니다.  
-2. 규정 마스터(예: REG-S003 온도 초과, REG-S005 근로시간 초과)와 조인해 **위반/위험 이벤트**를 계산합니다.  
-3. Azure AI Foundry + Semantic Kernel로 만든 **Compliance Report Agent**가:
-   - OneLake/Fabric에서 집계 쿼리 실행  
-   - 규정별/라인별/기간별 위반 현황을 표와 텍스트로 생성  
-   - 차트 구성을 위한 JSON 시각화 스펙까지 반환  
-4. 로컬 웹 앱은 이를 받아 리포트를 렌더링하고 PDF/파일로 내보낼 수 있습니다.
+```
+Fabric-Agent-Test/
+├── FabricAgent.sln
+├── README.md
+├── docs/
+│   └── architecture.md
+└── src/
+    ├── FabricAgent.Backend/    # ASP.NET Core Web API
+    │   ├── Program.cs
+    │   ├── appsettings.json
+    │   └── FabricAgent.Backend.csproj
+    └── FabricAgent.Frontend/   # Blazor Server UI
+        ├── Program.cs
+        ├── Pages/
+        │   ├── Index.razor      # 채팅 UI
+        │   └── _Host.cshtml
+        ├── Shared/
+        │   └── MainLayout.razor
+        └── FabricAgent.Frontend.csproj
+```
 
-핵심은 LLM이 **탐지 결과를 해석·요약·문서화하는 역할**을 맡는 것입니다.
+## 시작하기
 
----
+### 사전 요구사항
 
-## 2. 아키텍처
+- .NET 8.0 SDK
+- Azure OpenAI 계정 및 엔드포인트
+- (선택) Microsoft Fabric 접근 권한
 
-[Sensor / Log Data]
-|
-v
-[Fabric Lakehouse / Warehouse]
-|
-| (SQL / Notebook / ML 집계 및 이상탐지)
-v
-[Aggregated Views / Materialized Tables]
-|
-| (Semantic Kernel connector)
-v
-[Azure AI Foundry - LLM / Agent]
-|
-| (REST API)
-v
-[Local Web App] --> 사용자 조회, 프롬프트 실행, 리포트 생성
+### 설정
 
+1. **Backend 설정**
 
+   `src/FabricAgent.Backend/appsettings.json` 파일에서 Azure AI 자격증명을 설정하세요:
 
-**핵심 포인트**
-- 데이터의 진실은 Fabric에 있고,  
-- LLM은 쿼리 생성, 결과 해석, 보고서 작성만 담당합니다.  
-- Semantic Kernel은 Fabric SQL 호출 플러그인과 리포트 포매팅 플러그인을 통해 이를 제어합니다.
+   ```json
+   {
+     "AzureAI": {
+       "ProjectEndpoint": "YOUR_AZURE_OPENAI_ENDPOINT",
+       "DeploymentName": "gpt-4o",
+       "ApiKey": "YOUR_API_KEY"
+     }
+   }
+   ```
 
----
+2. **Frontend 설정** (선택사항)
 
-## 3. 주요 기능
+   `src/FabricAgent.Frontend/appsettings.json`에서 백엔드 URL을 변경할 수 있습니다:
 
-### ① Rule-aware Reporting  
-- `rule_master.csv`를 기준으로 규정 메타데이터 로드  
-- 센싱 데이터·근무시간·정비 이력과 조합해 위반 현황 생성  
+   ```json
+   {
+     "BackendApi": {
+       "BaseUrl": "http://localhost:5000"
+     }
+   }
+   ```
 
-### ② AI Generated Compliance Report  
-- 기간, 라인, 설비를 입력하면:  
-  - LLM이 SQL 생성 → Fabric SQL 실행  
-  - 결과를 요약문, 표, 시각화 스펙으로 변환  
-- 반환 구조:
-  ```json
-  {
-    "summary": "...",
-    "tables": [...],
-    "charts": [...]
-  }
+### 실행 방법
 
+#### 터미널 1: Backend 실행
 
-### ③ Local Web UI
+```bash
+cd src/FabricAgent.Backend
+dotnet restore
+dotnet run
+```
 
-- 기간/라인 선택 → “Generate Report” 클릭
-- 백엔드가 SK + Azure AI 호출
-- 결과를 HTML 테이블·차트로 렌더링 (PDF 내보내기 가능)
+Backend는 `http://localhost:5000`에서 실행됩니다.
+Swagger UI: `http://localhost:5000/swagger`
 
-## 4. 리포지토리 구조 예시
+#### 터미널 2: Frontend 실행
 
+```bash
+cd src/FabricAgent.Frontend
+dotnet restore
+dotnet run
+```
 
+Frontend는 `http://localhost:5001`에서 실행됩니다.
 
-## 5. 환경
+### 개발 모드 동시 실행
 
-- Microsoft Fabric (Lakehouse)
-- Azure 구독
-- Azure AI Foundry (프로젝트/모델 엔드포인트)
-- Semantic Kernel (C# 또는 Python SDK)
+```bash
+# 루트 디렉토리에서
+dotnet build
+```
 
+## 주요 기능
+
+### 1. AI 채팅 인터페이스
+- Azure OpenAI GPT-4o 모델과의 실시간 스트리밍 대화
+- Markdown 형식의 응답 렌더링
+- 에러 처리 및 연결 상태 표시
+
+### 2. Health Check
+- Backend 상태 확인: `GET http://localhost:5000/health`
+
+### 3. 확장 가능한 아키텍처
+- Semantic Kernel 통합 준비
+- Microsoft Fabric 데이터 연동 준비
+- 플러그인 기반 스킬 시스템
+
+## API 엔드포인트
+
+### Backend API
+
+- **Health Check**
+  - `GET /health`
+  - 응답: `{ "status": "healthy", "timestamp": "...", "service": "FabricAgent.Backend" }`
+
+- **Chat**
+  - `POST /api/agent/chat`
+  - 요청: `{ "message": "질문 내용" }`
+  - 응답: Server-Sent Events 스트림
+
+## 개발 로드맵
+
+- [x] 기본 Backend API 구조
+- [x] Blazor Frontend UI
+- [x] Azure OpenAI 통합
+- [x] 스트리밍 채팅 기능
+- [ ] Semantic Kernel 플러그인 구현
+- [ ] Microsoft Fabric 데이터 연동
+- [ ] 컴플라이언스 규정 마스터 데이터 관리
+- [ ] 리포트 생성 및 PDF 내보내기
+
+## 문제 해결
+
+### Backend 연결 오류
+- Backend가 `http://localhost:5000`에서 실행 중인지 확인
+- `appsettings.json`의 Azure AI 자격증명이 올바른지 확인
+
+### Azure OpenAI 오류
+- API Key와 Endpoint가 유효한지 확인
+- Deployment Name이 실제 배포된 모델 이름과 일치하는지 확인
+- Azure Portal에서 할당량 및 권한 확인
+
+## 라이센스
+
+MIT License
+
+## 기여
+
+프로젝트 개선을 위한 제안이나 버그 리포트는 언제든 환영합니다.

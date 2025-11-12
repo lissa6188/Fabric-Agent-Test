@@ -1,0 +1,16 @@
+# .gitignore for .NET and general
+bin/
+obj/
+.vs/
+**/*.user
+**/*.suo
+**/*.db
+node_modules/
+.env
+/.vscode/
+/.idea/
+
+# Sensitive configuration files (API keys, secrets)
+**/appsettings.json
+**/appsettings.*.json
+!**/appsettings.Development.json

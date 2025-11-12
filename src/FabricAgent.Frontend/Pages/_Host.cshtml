@@ -1,0 +1,31 @@
+@* 루트 URL (/) 매핑 - 모든 요청이 이 페이지로 폴백됨 *@
+@page "/"
+@namespace FabricAgent.Frontend.Pages
+@addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Fabric Agent Frontend</title>
+    
+    @* 상대 경로의 기준점 설정 *@
+    <base href="~/" />
+    
+    @* Bootstrap CSS (정적 파일 또는 CDN) *@
+    <link rel="stylesheet" href="_content/Bootstrap/css/bootstrap.min.css" />
+</head>
+<body>
+    @* Blazor 앱의 루트 컨테이너 *@
+    <app>
+        @* App.razor 컴포넌트를 렌더링 
+            - ServerPrerendered: 서버에서 미리 렌더링 후 HTML 전송 (빠른 초기 로딩)
+            - 이후 SignalR로 실시간 업데이트 *@
+        <component type="typeof(App)" render-mode="ServerPrerendered" />
+    </app>
+    
+    @* Blazor Server SignalR 클라이언트 스크립트 - 서버와 WebSocket 연결 *@
+    <script src="_framework/blazor.server.js"></script>
+</body>
+</html>

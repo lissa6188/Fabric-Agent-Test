@@ -1,0 +1,327 @@
+@page "/"
+@inject IHttpClientFactory HttpClientFactory
+@inject IJSRuntime JSRuntime
+@inject IConfiguration Configuration
+@using Markdig
+@using System.Text
+@using System.Text.Json
+@using Microsoft.JSInterop
+
+<div class="chat-window">
+    <div class="chat-header">
+        <h3 class="header-title">Fabric Agent Chat</h3>
+        <p class="header-subtitle">AI 기반 컴플라이언스 리포트 어시스턴트</p>
+    </div>
+    <div class="message-list" @ref="messageListElement">
+        @foreach (var msg in messages)
+        {
+            <div class="message-item @(msg.IsUser ? "user-message" : "agent-message")">
+                <div class="message-content">
+                    <div class="message-sender">@(msg.IsUser ? "You" : "Agent")</div>
+                    <div class="message-text">@((MarkupString)Markdown.ToHtml(msg.Text ?? ""))</div>
+                </div>
+            </div>
+        }
+        @if (isReceiving)
+        {
+            <div class="message-item agent-message">
+                <div class="message-content">
+                    <div class="message-sender">Agent</div>
+                    <div class="message-text">
+                        <span class="typing-indicator"></span>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="error-display">@errorMessage</div>
+    }
+    <div class="chat-input-area">
+        <textarea class="chat-input" 
+                  placeholder="메시지를 입력하세요..."
+                  @bind="userInput"
+                  @onkeydown="HandleKeyDown"
+                  disabled="@isReceiving"></textarea>
+        <button class="send-button" @onclick="SendMessage" disabled="@(isReceiving || string.IsNullOrWhiteSpace(userInput))">
+            전송
+        </button>
+    </div>
+</div>
+
+<style>
+    .chat-window {
+        display: flex;
+        flex-direction: column;
+        height: 85vh;
+        max-width: 1000px;
+        margin: 2rem auto;
+        border: 1px solid #e0e0e0;
+        border-radius: 12px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+        background-color: #ffffff;
+        overflow: hidden;
+    }
+
+    .chat-header {
+        padding: 1.25rem 1.5rem;
+        background-color: #f7f7f7;
+        border-bottom: 1px solid #e0e0e0;
+        text-align: center;
+    }
+
+    .header-title {
+        margin: 0;
+        font-size: 1.25rem;
+        font-weight: 600;
+    }
+
+    .header-subtitle {
+        margin: 0.25rem 0 0;
+        color: #666;
+        font-size: 0.9rem;
+    }
+
+    .message-list {
+        flex-grow: 1;
+        padding: 1.5rem;
+        overflow-y: auto;
+        background-color: #fcfcfc;
+    }
+
+    .message-item {
+        display: flex;
+        margin-bottom: 1.25rem;
+        max-width: 80%;
+    }
+
+    .user-message {
+        margin-left: auto;
+        flex-direction: row-reverse;
+    }
+
+    .message-content {
+        padding: 0.75rem 1.25rem;
+        border-radius: 18px;
+        line-height: 1.6;
+    }
+
+    .user-message .message-content {
+        background-color: #007bff;
+        color: white;
+        border-top-right-radius: 4px;
+    }
+
+    .agent-message .message-content {
+        background-color: #f0f0f0;
+        color: #333;
+        border-top-left-radius: 4px;
+    }
+    
+    .message-text p {
+        margin: 0 0 0.5rem 0;
+    }
+
+    .message-text p:last-child {
+        margin-bottom: 0;
+    }
+
+    .message-sender {
+        font-weight: 600;
+        font-size: 0.85rem;
+        margin-bottom: 0.3rem;
+        color: #888;
+    }
+    
+    .user-message .message-sender {
+        color: rgba(255, 255, 255, 0.8);
+    }
+
+    .chat-input-area {
+        display: flex;
+        padding: 1rem;
+        border-top: 1px solid #e0e0e0;
+        background-color: #f7f7f7;
+    }
+
+    .chat-input {
+        flex-grow: 1;
+        padding: 0.75rem;
+        border: 1px solid #ccc;
+        border-radius: 8px;
+        resize: none;
+        font-family: inherit;
+        font-size: 1rem;
+        height: 50px;
+    }
+
+    .send-button {
+        margin-left: 0.75rem;
+        padding: 0 1.5rem;
+        border: none;
+        border-radius: 8px;
+        background-color: #007bff;
+        color: white;
+        font-size: 1rem;
+        cursor: pointer;
+    }
+
+    .send-button:disabled {
+        background-color: #a0a0a0;
+        cursor: not-allowed;
+    }
+
+    .error-display {
+        color: #d9534f;
+        padding: 0.5rem 1.5rem;
+        background-color: #f2dede;
+        border-bottom: 1px solid #e0e0e0;
+    }
+
+    .typing-indicator {
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        background-color: #888;
+        border-radius: 50%;
+        animation: typing 1s infinite;
+    }
+    .typing-indicator::before, .typing-indicator::after {
+        content: '';
+        display: inline-block;
+        position: absolute;
+        width: 8px;
+        height: 8px;
+        background-color: #888;
+        border-radius: 50%;
+        animation: typing 1s infinite;
+    }
+    .typing-indicator::before {
+        margin-left: -12px;
+        animation-delay: -0.2s;
+    }
+    .typing-indicator::after {
+        margin-left: 12px;
+        animation-delay: 0.2s;
+    }
+
+    @@keyframes typing {
+        0%, 100% { opacity: 0.3; }
+        50% { opacity: 1; }
+    }
+</style>
+
+@code {
+    private List<ChatMessage> messages = new();
+    private string userInput = "";
+    private bool isReceiving = false;
+    private string errorMessage = "";
+    private ElementReference messageListElement;
+
+    private async Task HandleKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && !e.ShiftKey)
+        {
+            await SendMessage();
+        }
+    }
+
+    private async Task SendMessage()
+    {
+        if (string.IsNullOrWhiteSpace(userInput) || isReceiving)
+            return;
+
+        var userMessage = userInput.Trim();
+        messages.Add(new ChatMessage { Text = userMessage, IsUser = true });
+        userInput = "";
+        isReceiving = true;
+        errorMessage = "";
+        
+        var agentMessage = new ChatMessage { IsUser = false };
+        messages.Add(agentMessage);
+
+        try
+        {
+            var httpClient = HttpClientFactory.CreateClient();
+            var backendUrl = Configuration["BackendApi:BaseUrl"] ?? "http://localhost:5000";
+            
+            var request = new HttpRequestMessage(HttpMethod.Post, $"{backendUrl}/api/agent/chat");
+            request.Content = JsonContent.Create(new { message = userMessage });
+
+            using var response = await httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
+
+            if (response.IsSuccessStatusCode)
+            {
+                using var stream = await response.Content.ReadAsStreamAsync();
+                using var reader = new StreamReader(stream);
+
+                while (!reader.EndOfStream)
+                {
+                    var line = await reader.ReadLineAsync();
+                    if (line != null && line.StartsWith("data: "))
+                    {
+                        var content = line.Substring(6); // "data: " 제거
+                        
+                        if (content == "[DONE]")
+                            break;
+                        
+                        if (content.StartsWith("[ERROR]"))
+                        {
+                            errorMessage = content.Substring(8);
+                            break;
+                        }
+                        
+                        // 이스케이프된 개행문자 복원
+                        content = content.Replace("\\n", "\n");
+                        agentMessage.Text += content;
+                        StateHasChanged();
+                        await ScrollToBottom();
+                    }
+                }
+            }
+            else
+            {
+                errorMessage = $"API 오류: {response.StatusCode}";
+            }
+        }
+        catch (HttpRequestException ex)
+        {
+            errorMessage = $"연결 오류: 백엔드 서버가 실행 중인지 확인하세요. ({ex.Message})";
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"오류: {ex.Message}";
+        }
+        finally
+        {
+            isReceiving = false;
+            StateHasChanged();
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await ScrollToBottom();
+        }
+    }
+
+    private async Task ScrollToBottom()
+    {
+        try
+        {
+            await JSRuntime.InvokeVoidAsync("eval", "document.querySelector('.message-list').scrollTop = document.querySelector('.message-list').scrollHeight");
+        }
+        catch (JSException) { }
+        catch { }
+    }
+
+    private class ChatMessage
+    {
+        public string Text { get; set; } = "";
+        public bool IsUser { get; set; }
+    }
+}
+

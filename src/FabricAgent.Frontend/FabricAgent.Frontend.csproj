@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <!-- 프로젝트 속성 -->
+  <PropertyGroup>
+    <!-- .NET 8.0 타겟팅 -->
+    <TargetFramework>net8.0</TargetFramework>
+    
+    <!-- Nullable 참조 타입 활성화 (null 안전성 향상) -->
+    <Nullable>enable</Nullable>
+    
+    <!-- 자주 사용하는 네임스페이스 자동 추가 (System, System.Linq 등) -->
+    <ImplicitUsings>enable</ImplicitUsings>
+    
+    <!-- 프로젝트의 기본 네임스페이스 -->
+    <RootNamespace>FabricAgent.Frontend</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Markdig" Version="0.43.0" />
+  </ItemGroup>
+</Project>
